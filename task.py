@@ -142,7 +142,7 @@ if __name__ == '__main__':
     calib_path = "gait3d-001/Sequences/p2s1/Calibration/c1.xml"
     src_path = "./gait3d-001/Sequences/p2s1/Edges/c1"
     camera = Camera.from_csv(f'{prefix}/{calib_path}')
-    run_cpp('cmake-build-debug/cpp_cv.exe', 'C:/Users/xgg/CLionProjects/cpp_cv/motion.csv', camera)
+    run_cpp('cmake-build-debug/cpp_cv.exe', 'C:/Users/xgg/CLionProjects/cpp_cv/p1s1_2.csv', camera)
 
     # path_npy = "result.npy"
     # read_file_npy(path_npy, src_path, camera)

@@ -10,6 +10,12 @@ extern camera_parameters cp;
 extern calibration_constants cc;
 
 
+#ifdef DEBUG
+#define DEBUG_MSG(str) do { std::cout << str << std::endl; } while( false )
+#else
+#define DEBUG_MSG(str) do { } while ( false )
+#endif
+
 struct Input_args {
     const std::string coords_file;
     const std::string camera_params;
@@ -27,7 +33,7 @@ Input_args parse_args(std::vector<std::string> args) {
     return {args.at(1), args.at(2), args.at(3)};
 }
 
-void load_camera_params(camera_parameters &cameraParameters, std::string const &params) {
+void load_camera_params(camera_parameters &cameraParameters, const std::string &params) {
     std::vector<double> v_cp;
 
     std::stringstream ss(params);
@@ -50,7 +56,7 @@ void load_camera_params(camera_parameters &cameraParameters, std::string const &
     cameraParameters.sx = v_cp.at(8);
 }
 
-void load_cal_consts(calibration_constants &calibrationConstants, std::string const &cal_consts) {
+void load_cal_consts(calibration_constants &calibrationConstants, const std::string &cal_consts) {
     std::vector<double> v_cp;
 
     std::stringstream ss(cal_consts);
@@ -71,42 +77,48 @@ void load_cal_consts(calibration_constants &calibrationConstants, std::string co
     calibrationConstants.Rx = v_cp.at(7);
     calibrationConstants.Ry = v_cp.at(8);
     calibrationConstants.Rz = v_cp.at(9);
-    calibrationConstants.r1 = v_cp.at(10);
-    calibrationConstants.r2 = v_cp.at(11);
-    calibrationConstants.r3 = v_cp.at(12);
-    calibrationConstants.r4 = v_cp.at(13);
-    calibrationConstants.r5 = v_cp.at(14);
-    calibrationConstants.r6 = v_cp.at(15);
-    calibrationConstants.r7 = v_cp.at(16);
-    calibrationConstants.r8 = v_cp.at(17);
-    calibrationConstants.r9 = v_cp.at(18);
+
+    double sa, ca, sb, cb, sg, cg;
+
+    SINCOS (calibrationConstants.Rx, sa, ca);
+    SINCOS (calibrationConstants.Ry, sb, cb);
+    SINCOS (calibrationConstants.Rz, sg, cg);
+
+    calibrationConstants.r1 = cb * cg;
+    calibrationConstants.r2 = cg * sa * sb - ca * sg;
+    calibrationConstants.r3 = sa * sg + ca * cg * sb;
+    calibrationConstants.r4 = cb * sg;
+    calibrationConstants.r5 = sa * sb * sg + ca * cg;
+    calibrationConstants.r6 = ca * sb * sg - cg * sa;
+    calibrationConstants.r7 = -sb;
+    calibrationConstants.r8 = cb * sa;
+    calibrationConstants.r9 = ca * cb;
 }
 
 template<typename T>
-std::vector<std::vector<T>> split_vector(const std::vector<T>& vec, size_t n)
+std::vector<std::vector<T>> split_vector(const std::vector<T>& source, size_t chunkSize)
 {
-    std::vector<std::vector<T>> outVec;
+    std::vector<std::vector<T>> result;
+    result.reserve((source.size() + chunkSize - 1) / chunkSize);
 
-    size_t length = vec.size() / n;
-    size_t remain = vec.size() % n;
+    auto start = source.begin();
+    auto end = source.end();
 
-    size_t begin = 0;
-    size_t end = 0;
+    while (start != end) {
+        auto next = std::distance(start, end) >= chunkSize
+                    ? start + chunkSize
+                    : end;
 
-    for (size_t i = 0; i < std::min(n, vec.size()); ++i)
-    {
-        end += (remain > 0) ? (length + !!(remain--)) : length;
-
-        outVec.push_back(std::vector<T>(vec.begin() + begin, vec.begin() + end));
-
-        begin = end;
+        result.emplace_back(start, next);
+        start = next;
     }
 
-    return outVec;
+    return result;
 }
 
-void calc_from_file(std::string const &file_name) {
+void calc_from_file(const std::string &file_name) {
     std::ifstream infile(file_name);
+    std::ofstream outfile(file_name.substr(0, file_name.size()-4) + "_a.csv", std::ofstream::out | std::ofstream::trunc);
 
     std::vector<std::vector<double>> result;
 
@@ -117,8 +129,6 @@ void calc_from_file(std::string const &file_name) {
         std::vector<double> v_before;
         std::vector<double> v_after;
 
-        std::cout << ";;" << line << "\n";
-
         std::stringstream ss(line);
         while( ss.good() ) {
             std::string substr;
@@ -126,18 +136,27 @@ void calc_from_file(std::string const &file_name) {
             v_before.push_back(strtod(substr.c_str(), nullptr));
         }
 
-        auto x = split_vector(v_before, 3);
+        auto time = v_before.front();
+        v_before.erase(v_before.begin());
 
+        auto x = split_vector(v_before, 3);
+        outfile << time;
         for (auto item : x) {
             double xf = 0;
             double yf = 0;
             world_coord_to_image_coord(item[0], item[1], item[2], &xf, &yf);
             result.push_back({xf, yf});
+#ifdef DEBUG
             std::cout << item[0] << "," << item[1] << "," << item[2];
-            std::cout << "=>{" << xf << ", " << yf << "} ";
+            std::cout << "=>{" << xf << ", " << yf << "} \n";
+#endif
+            outfile << "," << round(xf) << "," << round(yf);
         }
-        std::cout << "\n";
+        outfile << "\n";
     }
+
+    infile.close();
+    outfile.close();
 }
 
 int main(int argc, char *argv[]) {

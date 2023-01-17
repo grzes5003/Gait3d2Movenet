@@ -15,6 +15,7 @@
 
 #include <cstdio>
 #include <cmath>
+#include <iostream>
 #include "cal_main.h"
 
 
@@ -58,7 +59,7 @@ double CBRT(double x) {
 */
 
 void undistorted_to_distorted_sensor_coord(double Xu, double Yu, double *Xd, double *Yd) {
-#define SQRT3   1.732050807568877293527446341505872366943
+    const auto SQRT3 = 1.732050807568877293527446341505872366943;
 
     double Ru,
             Rd,
@@ -100,10 +101,8 @@ void undistorted_to_distorted_sensor_coord(double Xu, double Yu, double *Xd, dou
             fprintf(stderr, "         maximum barrel distortion radius of %lf\n", Rd);
             fprintf(stderr, "         (Xu = %lf, Yu = %lf) -> (Xd = %lf, Yd = %lf)\n\n",
                     Xu, Yu,
-                    Xu * Rd
-                    / Ru,
-                    Yu * Rd
-                    / Ru);
+                    Xu * Rd / Ru,
+                    Yu * Rd / Ru);
         }
     } else {            /* three real roots */
         D = SQRT (-D);
@@ -120,10 +119,8 @@ void undistorted_to_distorted_sensor_coord(double Xu, double Yu, double *Xd, dou
 
     lambda = Rd / Ru;
 
-    *
-            Xd = Xu * lambda;
-    *
-            Yd = Yu * lambda;
+    *Xd = Xu * lambda;
+    *Yd = Yu * lambda;
 }
 
 
@@ -133,10 +130,8 @@ void distorted_to_undistorted_sensor_coord(double Xd, double Yd, double *Xu, dou
 
 /* convert from distorted to undistorted sensor plane coordinates */
     distortion_factor = 1 + cc.kappa1 * (SQR (Xd) + SQR (Yd));
-    *
-            Xu = Xd * distortion_factor;
-    *
-            Yu = Yd * distortion_factor;
+    *Xu = Xd * distortion_factor;
+    *Yu = Yd * distortion_factor;
 }
 
 
